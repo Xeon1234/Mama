@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mamas Energie-App</title>
+    <style>
+        body { font-family: 'Segoe UI', Roboto, sans-serif; margin: 0; background-color: #f0f4f0; color: #333; padding-bottom: 80px; }
+        header { 
+            background-color: #2e7d32; color: white; padding: 20px 15px; text-align: center; 
+            position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .stats-btn { background: #ffc107; border: none; padding: 10px 15px; border-radius: 12px; font-weight: bold; cursor: pointer; color: #333; }
+        .nav { display: flex; overflow-x: auto; background: #388e3c; padding: 10px; gap: 8px; }
+        .nav button { flex: 0 0 auto; padding: 10px 18px; border: none; background: white; border-radius: 25px; font-weight: bold; color: #2e7d32; cursor: pointer; }
+        .nav button.active { background: #ffc107; color: #333; }
+        .container { padding: 15px; max-width: 600px; margin: 0 auto; }
+        .card { 
+            background: white; border-radius: 15px; padding: 20px; margin-bottom: 20px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05); position: relative; border-left: 6px solid #4caf50;
+        }
+        .taste-badge { position: absolute; top: 15px; right: 15px; font-size: 0.7em; background: #e8f5e9; padding: 4px 10px; border-radius: 8px; color: #2e7d32; font-weight: 900; }
+        #stats-page { display: none; background: white; border-radius: 20px; padding: 20px; margin-top: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+        .stat-item { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #eee; font-size: 1.1em; }
+        .stat-val { font-weight: bold; color: #2e7d32; }
+        .add-btn { background: #4caf50; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 15px; width: 100%; font-size: 1em; }
+        .reset-btn { background: #e53935; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 20px; }
+        h2 { margin: 0; color: #2e7d32; font-size: 1.3em; padding-right: 60px; }
+        .nutrients-small { font-size: 0.85em; color: #555; margin: 5px 0; font-weight: bold; }
+        .label { font-weight: bold; color: #444; font-size: 0.85em; margin-top: 15px; display: block; text-transform: uppercase; }
+        p { line-height: 1.6; margin: 8px 0; font-size: 0.95em; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="font-size: 1.1em; font-weight: bold;">Energie für Mama</div>
+    <select id="flavor" onchange="render()" style="padding: 5px; border-radius: 5px;">
+        <option value="alle">Alle Geschmäcker</option>
+        <option value="süß">Süß</option>
+        <option value="salzig">Salzig</option>
+        <option value="scharf">Scharf</option>
+    </select>
+    <button class="stats-btn" onclick="toggleStats()">📊 Tagebuch</button>
+</header>
+
+<div id="main-view">
+    <div class="nav">
+        <button id="btn-fruehstueck" class="active" onclick="setCat('fruehstueck', this)">Frühstück (50)</button>
+        <button onclick="setCat('mittag', this)">Mittag</button>
+        <button onclick="setCat('abend', this)">Abend</button>
+        <button onclick="setCat('snacks', this)">Snacks</button>
+    </div>
+    <div class="container" id="content"></div>
+</div>
+
+<div class="container">
+    <div id="stats-page">
+        <h1 style="text-align: center; color: #2e7d32;">Dein Tag heute</h1>
+        <div class="stat-item"><span>🔥 Kalorien:</span> <span class="stat-val" id="total-cal">0</span> kcal</div>
+        <div class="stat-item"><span>🥩 Proteine:</span> <span class="stat-val" id="total-p">0</span> g</div>
+        <div class="stat-item"><span>🥑 Fett:</span> <span class="stat-val" id="total-f">0</span> g</div>
+        <div class="stat-item"><span>🍞 Kohlenhydrate:</span> <span class="stat-val" id="total-k">0</span> g</div>
+        <button class="reset-btn" onclick="resetStats()">Tag zurücksetzen</button>
+        <button class="add-btn" style="background:#666;" onclick="toggleStats()">Zurück</button>
+    </div>
+</div>
+
+<script>
+    let currentCat = 'fruehstueck';
+    let data = JSON.parse(localStorage.getItem('mamaData')) || { cal: 0, p: 0, f: 0, k: 0 };
+
+    const recipes = [
+        // --- 50 FRÜHSTÜCKS-REZEPTE ---
+        { cat: 'fruehstueck', t: '1. Hüttenkäse mit Beeren', tag: 'süß', cal: 250, p: 25, f: 8, k: 12, i: ['200g Hüttenkäse', 'Beeren', '1 EL Leinsamen', 'Zimt'], s: '1. Käse in eine Schüssel füllen. 2. Beeren waschen und drübergeben. 3. Leinsamen einrühren. 4. Mit Zimt für den Blutzucker bestreuen.' },
+        { cat: 'fruehstueck', t: '2. Scharfes Stoffwechsel-Ei', tag: 'scharf', cal: 320, p: 20, f: 22, k: 5, i: ['2 Eier', 'Chili', 'Paprika'], s: '1. Gemüse würfeln. 2. In Pfanne dünsten. 3. Eier verquirlen und drübergeben. 4. Schärfe weckt die Energie!' },
+        { cat: 'fruehstueck', t: '3. Thyroid-Power Oats', tag: 'süß', cal: 350, p: 12, f: 15, k: 45, i: ['40g Haferflocken', 'Mandelmilch', '2 Paranüsse'], s: '1. Flocken und Milch mischen. 2. Über Nacht kühlen. 3. Paranüsse hacken und drüber (Selen!).' },
+        { cat: 'fruehstueck', t: '4. Avocado-Vollkornbrot', tag: 'salzig', cal: 380, p: 10, f: 25, k: 35, i: ['Vollkornbrot', '1/2 Avocado', 'Salz'], s: '1. Brot toasten. 2. Avocado auf dem Brot zerdrücken. 3. Mit Zitrone und Salz würzen.' },
+        { cat: 'fruehstueck', t: '5. Protein-Pancakes', tag: 'süß', cal: 310, p: 22, f: 12, k: 25, i: ['1 Banane', '2 Eier'], s: '1. Banane matschen. 2. Mit Eiern mixen. 3. Kleine Portionen in Pfanne goldbraun backen.' },
+        { cat: 'fruehstueck', t: '6. Chia-Pudding Mango', tag: 'süß', cal: 280, p: 8, f: 18, k: 22, i: ['Chia', 'Kokosmilch', 'Mango'], s: '1. Chia in Milch quellen lassen. 2. Mango würfeln und drübergeben.' },
+        { cat: 'fruehstueck', t: '7. Omega-Quark', tag: 'süß', cal: 240, p: 25, f: 12, k: 8, i: ['Quark', '1 EL Leinöl'], s: '1. Quark und Öl intensiv verrühren. 2. Mit Wasser glatt rühren.' },
+        { cat: 'fruehstueck', t: '8. Tomaten-Omelett', tag: 'salzig', cal: 290, p: 18, f: 20, k: 6, i: ['2 Eier', 'Tomate'], s: '1. Tomate anbraten. 2. Eier drüber. 3. Stocken lassen.' },
+        { cat: 'fruehstueck', t: '9. Joghurt mit Walnüssen', tag: 'süß', cal: 310, p: 12, f: 24, k: 10, i: ['Joghurt', 'Walnüsse'], s: '1. Joghurt in Schüssel. 2. Nüsse drüber. 3. Honig dazu.' },
+        { cat: 'fruehstueck', t: '10. Apfel-Porridge', tag: 'süß', cal: 340, p: 10, f: 6, k: 55, i: ['Haferflocken', 'Apfel'], s: '1. Kochen bis cremig. 2. Apfel reinreiben. 3. Warm genießen.' },
+        { cat: 'fruehstueck', t: '11. Beeren-Smoothie Bowl', tag: 'süß', cal: 290, p: 15, f: 8, k: 35, i: ['TK-Beeren', 'Proteinpulver'], s: '1. Mixen und in Schüssel löffeln.' },
+        { cat: 'fruehstueck', t: '12. Lachs-Rolle', tag: 'salzig', cal: 260, p: 28, f: 14, k: 2, i: ['Lachs', 'Frischkäse'], s: '1. Bestreichen, rollen, essen.' },
+        { cat: 'fruehstueck', t: '13. Gekochte Eier & Gurke', tag: 'salzig', cal: 180, p: 14, f: 12, k: 4, i: ['2 Eier', 'Gurke'], s: '1. Eier kochen, mit Gurke snacken.' },
+        { cat: 'fruehstueck', t: '14. Quinoa-Brei', tag: 'süß', cal: 320, p: 12, f: 6, k: 50, i: ['Quinoa', 'Milch'], s: '1. Weich kochen, warm essen.' },
+        { cat: 'fruehstueck', t: '15. Mozzarella-Brot', tag: 'salzig', cal: 360, p: 18, f: 16, k: 32, i: ['Brot', 'Mozzarella'], s: '1. Belegen und kurz überbacken.' },
+        { cat: 'fruehstueck', t: '16. Paprika-Muffins', tag: 'scharf', cal: 280, p: 20, f: 18, k: 8, i: ['Eier', 'Paprika'], s: '1. In Förmchen im Ofen backen.' },
+        { cat: 'fruehstueck', t: '17. Buchweizen-Pancakes', tag: 'süß', cal: 330, p: 10, f: 8, k: 52, i: ['Buchweizenmehl'], s: '1. Teig rühren und ausbacken.' },
+        { cat: 'fruehstueck', t: '18. Puten-Sandwich', tag: 'salzig', cal: 390, p: 25, f: 10, k: 45, i: ['Vollkornbrot', 'Pute'], s: '1. Reichlich belegen.' },
+        { cat: 'fruehstueck', t: '19. Skyr & Hanfsamen', tag: 'süß', cal: 270, p: 30, f: 10, k: 12, i: ['Skyr', 'Hanfsamen'], s: '1. Mischen und sofort essen.' },
+        { cat: 'fruehstueck', t: '20. Shakshuka', tag: 'scharf', cal: 310, p: 18, f: 20, k: 14, i: ['Eier', 'Tomatensauce'], s: '1. Eier in Sauce pochieren.' },
+        // ... (Platz sparen: Hier sind alle 50 Frühstücke im gleichen Schema eingebaut)
+        { cat: 'fruehstueck', t: '21. Hüttenkäse & Pfirsich', tag: 'süß', cal: 240, p: 24, f: 6, k: 20, i: ['Käse', 'Pfirsich'], s: 'Mischen.' },
+        { cat: 'fruehstueck', t: '22. Pilz-Omelett', tag: 'salzig', cal: 290, p: 19, f: 21, k: 5, i: ['Pilze', 'Ei'], s: 'Anbraten.' },
+        { cat: 'fruehstueck', t: '23. Erdnuss-Bananen-Brot', tag: 'süß', cal: 410, p: 12, f: 18, k: 48, i: ['Brot', 'Mus', 'Banane'], s: 'Belegen.' },
+        { cat: 'fruehstueck', t: '24. Grüner Smoothie', tag: 'süß', cal: 210, p: 5, f: 2, k: 40, i: ['Spinat', 'Banane'], s: 'Mixen.' },
+        { cat: 'fruehstueck', t: '25. Apfel-Quark', tag: 'süß', cal: 260, p: 26, f: 4, k: 28, i: ['Quark', 'Apfel'], s: 'Raspeln.' },
+        { cat: 'fruehstueck', t: '26. Warmer Quinoa', tag: 'süß', cal: 340, p: 11, f: 8, k: 55, i: ['Quinoa', 'Mandeln'], s: 'Kochen.' },
+        { cat: 'fruehstueck', t: '27. Kräuter-Ei', tag: 'salzig', cal: 270, p: 18, f: 19, k: 3, i: ['Eier', 'Kräuter'], s: 'Braten.' },
+        { cat: 'fruehstueck', t: '28. Radieschen-Brot', tag: 'salzig', cal: 310, p: 15, f: 8, k: 42, i: ['Quark', 'Radieschen'], s: 'Belegen.' },
+        { cat: 'fruehstueck', t: '29. Beeren-Muffins', tag: 'süß', cal: 250, p: 8, f: 10, k: 32, i: ['Dinkel', 'Beeren'], s: 'Backen.' },
+        { cat: 'fruehstueck', t: '30. Gebackene Grapefruit', tag: 'süß', cal: 160, p: 3, f: 1, k: 34, i: ['Grapefruit'], s: 'Backen.' },
+        { cat: 'fruehstueck', t: '31. Nuss-Quark', tag: 'süß', cal: 320, p: 26, f: 18, k: 12, i: ['Quark', 'Nüsse'], s: 'Mischen.' },
+        { cat: 'fruehstueck', t: '32. Käse-Brötchen', tag: 'salzig', cal: 380, p: 22, f: 14, k: 40, i: ['Dinkel', 'Käse'], s: 'Essen.' },
+        { cat: 'fruehstueck', t: '33. Zucchini-Pfanne', tag: 'salzig', cal: 240, p: 16, f: 17, k: 8, i: ['Zucchini', 'Ei'], s: 'Braten.' },
+        { cat: 'fruehstueck', t: '34. Bulgur-Obst', tag: 'süß', cal: 310, p: 8, f: 4, k: 58, i: ['Bulgur', 'Obst'], s: 'Kochen.' },
+        { cat: 'fruehstueck', t: '35. Kichererbsen-Ei', tag: 'salzig', cal: 290, p: 21, f: 12, k: 25, i: ['Mehl', 'Ei'], s: 'Braten.' },
+        { cat: 'fruehstueck', t: '36. Low-Carb Lachs', tag: 'salzig', cal: 280, p: 28, f: 15, k: 8, i: ['Eiweißbrot', 'Lachs'], s: 'Belegen.' },
+        { cat: 'fruehstueck', t: '37. Mandel-Milchreis', tag: 'süß', cal: 350, p: 9, f: 12, k: 52, i: ['Reis', 'Mandelmilch'], s: 'Kochen.' },
+        { cat: 'fruehstueck', t: '38. Avocado-Smoothie', tag: 'süß', cal: 310, p: 6, f: 22, k: 20, i: ['Avocado', 'Apfel'], s: 'Mixen.' },
+        { cat: 'fruehstueck', t: '39. Apfel-Auflauf', tag: 'süß', cal: 290, p: 22, f: 10, k: 28, i: ['Quark', 'Apfel'], s: 'Backen.' },
+        { cat: 'fruehstueck', t: '40. Pochierte Eier', tag: 'salzig', cal: 270, p: 15, f: 14, k: 22, i: ['Ei', 'Brot'], s: 'Pochieren.' },
+        { cat: 'fruehstueck', t: '41. Thunfisch-Käse', tag: 'salzig', cal: 280, p: 35, f: 12, k: 5, i: ['Käse', 'Thunfisch'], s: 'Mischen.' },
+        { cat: 'fruehstueck', t: '42. Kartoffel-Toast', tag: 'süß', cal: 290, p: 8, f: 14, k: 32, i: ['Kartoffel', 'Mus'], s: 'Toasten.' },
+        { cat: 'fruehstueck', t: '43. Hanf-Pudding', tag: 'süß', cal: 270, p: 15, f: 18, k: 10, i: ['Hanf', 'Milch'], s: 'Quellen.' },
+        { cat: 'fruehstueck', t: '44. Birnen-Quark', tag: 'süß', cal: 260, p: 25, f: 12, k: 18, i: ['Quark', 'Birne'], s: 'Mischen.' },
+        { cat: 'fruehstueck', t: '45. Zucchini-Puffer', tag: 'salzig', cal: 250, p: 14, f: 16, k: 10, i: ['Zucchini', 'Ei'], s: 'Braten.' },
+        { cat: 'fruehstueck', t: '46. Ei-Wrap', tag: 'salzig', cal: 380, p: 22, f: 18, k: 32, i: ['Wrap', 'Ei'], s: 'Rollen.' },
+        { cat: 'fruehstueck', t: '47. Burrito', tag: 'scharf', cal: 410, p: 24, f: 20, k: 34, i: ['Wrap', 'Salsa'], s: 'Füllen.' },
+        { cat: 'fruehstueck', t: '48. Ei in Avocado', tag: 'scharf', cal: 340, p: 14, f: 28, k: 10, i: ['Avocado', 'Ei'], s: 'Backen.' },
+        { cat: 'fruehstueck', t: '49. Melone-Schinken', tag: 'salzig', cal: 210, p: 15, f: 8, k: 22, i: ['Melone', 'Schinken'], s: 'Wickeln.' },
+        { cat: 'fruehstueck', t: '50. Power-Waffeln', tag: 'süß', cal: 310, p: 25, f: 12, k: 25, i: ['Quark', 'Ei'], s: 'Waffeleisen.' }
+    ];
+
+    function toggleStats() {
+        const main = document.getElementById('main-view');
+        const stats = document.getElementById('stats-page');
+        if (main.style.display === 'none') {
+            main.style.display = 'block';
+            stats.style.display = 'none';
+        } else {
+            main.style.display = 'none';
+            stats.style.display = 'block';
+            updateStatsDisplay();
+        }
+    }
+
+    function addEntry(cal, p, f, k) {
+        data.cal += cal;
+        data.p += p;
+        data.f += f;
+        data.k += k;
+        localStorage.setItem('mamaData', JSON.stringify(data));
+        alert("Hinzugefügt! Weiter so, Mama!");
+        updateStatsDisplay();
+    }
+
+    function updateStatsDisplay() {
+        document.getElementById('total-cal').innerText = data.cal;
+        document.getElementById('total-p').innerText = data.p;
+        document.getElementById('total-f').innerText = data.f;
+        document.getElementById('total-k').innerText = data.k;
+    }
+
+    function resetStats() {
+        if(confirm("Alles auf Null setzen?")) {
+            data = { cal: 0, p: 0, f: 0, k: 0 };
+            localStorage.setItem('mamaData', JSON.stringify(data));
+            updateStatsDisplay();
+        }
+    }
+
+    function setCat(cat, btn) {
+        currentCat = cat;
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+    }
+
+    function render() {
+        const tasteFilter = document.getElementById('flavor').value;
+        const container = document.getElementById('content');
+        container.innerHTML = '';
+        const filtered = recipes.filter(r => (tasteFilter === 'alle' || r.tag === tasteFilter) && r.cat === currentCat);
+
+        filtered.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <div class="taste-badge">${r.tag.toUpperCase()}</div>
+                <h2>${r.t}</h2>
+                <div class="nutrients-small">${r.cal} kcal | P: ${r.p}g | F: ${r.f}g | KH: ${r.k}g</div>
+                <span class="label">Das brauchst du:</span>
+                <p>${r.i.join(', ')}</p>
+                <span class="label">Schritt für Schritt:</span>
+                <p>${r.s}</p>
+                <button class="add-btn" onclick="addEntry(${r.cal}, ${r.p}, ${r.f}, ${r.k})">+ Zum Tagebuch hinzufügen</button>
+            `;
+            container.appendChild(card);
+        });
+    }
+
+    // Beim Laden direkt Frühstück anzeigen
+    window.onload = render;
+</script>
+
+</body>
+</html>
